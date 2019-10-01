@@ -1,3 +1,0 @@
-PIDlib.c:13:6:PID_initTask10Hz	48	static
-PIDlib.c:22:6:task10HzSignal	16	static
-PIDlib.c:28:6:PID_deInitTask10Hz	4	static

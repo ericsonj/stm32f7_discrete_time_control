@@ -25,6 +25,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32f7xx_nucleo_144.h"
+#include "PIDlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -34,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define DATA_BUFFER_LEN 64
+#define DATA_BUFFER_LEN 1024
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,8 +51,11 @@ DAC_HandleTypeDef hdac;
 UART_HandleTypeDef huart3;
 
 osThreadId_t defaultTaskHandle;
+
 /* USER CODE BEGIN PV */
+
 static uint32_t dataBuffer[DATA_BUFFER_LEN];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -135,6 +139,8 @@ int main(void)
     .stack_size = 128
   };
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  PID_initTask10Hz();
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -288,10 +294,16 @@ static void MX_DAC_Init(void)
   {
     Error_Handler();
   }
-  /** DAC channel OUT2 config 
+  /** DAC channel OUT1 config 
   */
   sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
   sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+  if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** DAC channel OUT2 config 
+  */
   if (HAL_DAC_ConfigChannel(&hdac, &sConfig, DAC_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -448,9 +460,6 @@ static void MX_GPIO_Init(void)
 void StartDefaultTask(void *argument)
 {
     
-    
-    
-
   /* USER CODE BEGIN 5 */
 
     uint32_t count = 0;
@@ -461,7 +470,7 @@ void StartDefaultTask(void *argument)
     HAL_DAC_SetValue(&hdac, DAC1_CHANNEL_2, DAC_ALIGN_12B_R, 0);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
 
-	vTaskDelay(1000 / portTICK_RATE_MS);
+	vTaskDelay(99 / portTICK_RATE_MS);
 	HAL_DAC_SetValue(&hdac, DAC1_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
 
 	xLastWakeTime = xTaskGetTickCount();

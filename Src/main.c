@@ -24,7 +24,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "stm32f7xx_nucleo_144.h"
 #include "PIDlib.h"
 /* USER CODE END Includes */
 
@@ -35,7 +34,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define DATA_BUFFER_LEN 1024
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -51,11 +49,7 @@ DAC_HandleTypeDef hdac;
 UART_HandleTypeDef huart3;
 
 osThreadId_t defaultTaskHandle;
-
 /* USER CODE BEGIN PV */
-
-static uint32_t dataBuffer[DATA_BUFFER_LEN];
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -109,8 +103,6 @@ int main(void)
   MX_DAC_Init();
   /* USER CODE BEGIN 2 */
 
-  BSP_LED_Init(LED_BLUE);
-
   /* USER CODE END 2 */
 
   osKernelInitialize();
@@ -136,14 +128,13 @@ int main(void)
   const osThreadAttr_t defaultTask_attributes = {
     .name = "defaultTask",
     .priority = (osPriority_t) osPriorityNormal,
-    .stack_size = 128
+    .stack_size = 512
   };
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  PID_initTask10Hz();
-
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  PID_initTask10Hz();
   /* USER CODE END RTOS_THREADS */
 
   /* Start scheduler */
@@ -459,48 +450,36 @@ static void MX_GPIO_Init(void)
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-    
+
   /* USER CODE BEGIN 5 */
-
-    uint32_t count = 0;
-    uint32_t ADCValue;
-    TickType_t xLastWakeTime;
-    TickType_t h_ms = 1 / portTICK_RATE_MS;
-
-    HAL_DAC_SetValue(&hdac, DAC1_CHANNEL_2, DAC_ALIGN_12B_R, 0);
-	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
-
-	vTaskDelay(99 / portTICK_RATE_MS);
-	HAL_DAC_SetValue(&hdac, DAC1_CHANNEL_2, DAC_ALIGN_12B_R, 2048);
-
-	xLastWakeTime = xTaskGetTickCount();
   /* Infinite loop */
   for(;;)
   {
-
-		vTaskDelayUntil(&xLastWakeTime, h_ms);
-
-		HAL_ADC_Start(&hadc1);
-		if (HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK) {
-			ADCValue = HAL_ADC_GetValue(&hadc1);
-		}
-		if (count < DATA_BUFFER_LEN) {
-			dataBuffer[count] = ADCValue;
-			count++;
-		} else {
-			BSP_LED_Toggle(LED_BLUE);
-			uint8_t msg[] = "%d,\n";
-			uint8_t buffer[16];
-			for (int i = 0; i < DATA_BUFFER_LEN; ++i) {
-				sprintf(buffer, msg, dataBuffer[i]);
-				HAL_UART_Transmit(&huart3, buffer, strlen(buffer), 100);
-			}
-			while (1)
-				;
-		}
-
+	  osDelay(1000);
   }
   /* USER CODE END 5 */ 
+
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM1 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM1) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
 }
 
 /**

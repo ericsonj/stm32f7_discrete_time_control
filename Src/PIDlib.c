@@ -13,11 +13,18 @@
 #include "pidUtil.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "pplace.h"
 #include "pid_controller.h"
+#include "identification_ls.h"
+#include "identification_rls.h"
+#include "identification_tasks.h"
 
 #define DATA_BUFFER_LEN 600
 #define _1V2  				(int)((float)1.2/(float)3.3)*4095))
+
+#define DAC_REFERENCE_VALUE_HIGH   2668  // 4095 = 3.3V, 666 = 2.15V
+#define DAC_REFERENCE_VALUE_LOW    2000  // 4095 = 3.3V,
 
 extern DAC_HandleTypeDef hdac;
 extern ADC_HandleTypeDef hadc1;
@@ -53,11 +60,14 @@ PIDController_t PsPIDController;
 
 pplace_config_t pplace_config;
 
+t_IRLSdata* tIRLS1;
+t_ILSdata* tILS1;
 
 TickType_t h_ms = 1 / portTICK_RATE_MS;
 
 static osThreadId_t signalTaskHandle;
 static osThreadId_t pidTaskHandle;
+static osThreadId_t idenTaskHandle;
 static SemaphoreHandle_t pidSemaph;
 
 static void task10HzSignal(void *pvParam);
@@ -73,6 +83,8 @@ static void setUValue(uint32_t value);
 static float getR_fValue();
 static float getY_fValue();
 static void setU_fValue(float value);
+
+static void receiveData(float* buffer);
 
 void PID_initTask10Hz() {
 
@@ -113,15 +125,29 @@ void PID_initTask10Hz() {
 
 	pplace_init(&pplace_config, 0.4);
 
-	const osThreadAttr_t signalTaskAttr = { .name = "Task 10Hz", .priority =
-			(osPriority_t) osPriorityNormal, .stack_size = 128 };
-	signalTaskHandle = osThreadNew(task10HzSignal, NULL, &signalTaskAttr);
+//	const osThreadAttr_t signalTaskAttr = { .name = "Task 10Hz", .priority =
+//			(osPriority_t) osPriorityNormal, .stack_size = 128 };
+//	signalTaskHandle = osThreadNew(task10HzSignal, NULL, &signalTaskAttr);
+//
+//	const osThreadAttr_t pidTaskAttr = { .name = "Task PID", .priority =
+//			(osPriority_t) osPriorityNormal, .stack_size = 1024 };
+//	pidTaskHandle = osThreadNew(taskPID, NULL, &pidTaskAttr);
+//
+//	pidSemaph = xSemaphoreCreateBinary();
 
-	const osThreadAttr_t pidTaskAttr = { .name = "Task PID", .priority =
-			(osPriority_t) osPriorityNormal, .stack_size = 1024 };
-	pidTaskHandle = osThreadNew(taskPID, NULL, &pidTaskAttr);
+//  Punto 8
 
-	pidSemaph = xSemaphoreCreateBinary();
+
+//    tIRLS1 = (t_IRLSdata*) pvPortMalloc (sizeof(t_IRLSdata));
+    tILS1 = (t_ILSdata*) pvPortMalloc (sizeof(t_ILSdata));
+
+//	IRLS_Init(tIRLS1, 1, receiveData);
+	ILS_Init(tILS1, 50, 1, receiveData);
+
+	const osThreadAttr_t idenTaskAttr = { .name = "Identification Task", .priority =
+				(osPriority_t) osPriorityNormal, .stack_size = 1024 };
+	idenTaskHandle = osThreadNew(ILS_Task, (void*)tILS1, &idenTaskAttr);
+
 
 }
 
@@ -248,6 +274,26 @@ static void setU_fValue(float value) {
 	uint32_t result = ((value / (float) 3.3) * 4096);
 	result = (result >= 4096 ? 4095 : result);
 	setUValue(result);
+}
+
+void receiveData(float* buffer) {
+	float Y, U;
+
+	uint32_t dacValue = 0;
+
+	// random = limite_inferior + rand() % (limite_superior +1 - limite_inferior);
+	dacValue = DAC_REFERENCE_VALUE_LOW
+			+ rand() % (DAC_REFERENCE_VALUE_HIGH + 1 - DAC_REFERENCE_VALUE_LOW);
+
+	setUValue(dacValue);
+
+	// dacSample = (1023.0 / 3.3) * sampleInVolts
+	// 1023.0 / 3.3 = 310.0
+	U = (float) dacValue * 3.3 / 4095.0;
+	Y = getY_fValue();
+
+	buffer[0] = U;
+	buffer[1] = Y;
 }
 
 void PID_deInitTask10Hz() {

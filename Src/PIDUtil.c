@@ -58,9 +58,7 @@ int intToStr(int x, char str[], int d)
 void PIDUTIL_ftoa(float n, char *res, int afterpoint)
 {
 	char *aux = res;
-	bool isNegative =  false;
 	if ( n < 0) {
-		isNegative = true;
 		n = n*(-1);
 		res[0] = '-';
 		aux++;

@@ -7,8 +7,8 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <PIDUtil.h>
 #include <stdbool.h>
-#include "pidUtil.h"
 
 uint32_t PIDUTIL_getValue(ADC_HandleTypeDef *adc) {
 	uint32_t value = 0;

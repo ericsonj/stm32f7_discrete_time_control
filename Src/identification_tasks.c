@@ -13,12 +13,12 @@
 
 #include "arm_math.h"
 #include <math.h>
+#include <PIDUtil.h>
 #include <string.h>
 
 #include "identification_ls.h"
 #include "identification_rls.h"
 
-#include "pidUtil.h"
 
 /*=====[Definition macros of private constants]==============================*/
 
@@ -110,7 +110,7 @@ void console_print(float* buffer) {
 	HAL_UART_Transmit(&huart3, (uint8_t*) printBuff, strlen(printBuff), 100);
 
 	float R = (-0.001)/(logf(buffer[0])*0.000001);
-	snprintf(printBuff, 64, "R = %d Ohms\r\n", (uint32_t)R);
+	snprintf(printBuff, 64, "R = %ld Ohms\r\n", (uint32_t)R);
 	HAL_UART_Transmit(&huart3, (uint8_t*) printBuff, strlen(printBuff), 100);
 
 }

@@ -1,9 +1,9 @@
 # stm32f7_discrete_time_control
 
-MSE CD TP Final
+## MSE Control Digital, Trabajo practico final 
 
-25. Control Digital 
+Autor: Ericson J Estupiñan
 
-Ericson J Estupiñan
+## Diagrama General
 
-2019
+![Diagrama](/doc/img/bigpicture.png)

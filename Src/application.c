@@ -4,13 +4,13 @@
  *  Created on: Sep 30, 2019
  *      Author: Ericson Joseph
  */
+#include <application.h>
+#include <PIDUtil.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 #include "cmsis_os.h"
 #include "stm32f7xx_nucleo_144.h"
-#include "PIDlib.h"
-#include "pidUtil.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,15 +31,20 @@ extern ADC_HandleTypeDef hadc1;
 extern ADC_HandleTypeDef hadc2;
 extern UART_HandleTypeDef huart3;
 
+#if DEPRECATE
 static uint32_t dataBuffer[DATA_BUFFER_LEN];
 static uint32_t signalBuffer[DATA_BUFFER_LEN];
 static uint32_t errorBuffer[DATA_BUFFER_LEN];
+#endif
 
 static float dataBufferFloat[DATA_BUFFER_LEN];
 static float signalBufferFloat[DATA_BUFFER_LEN];
 static float errorBufferFloat[DATA_BUFFER_LEN];
 
+#if DEPRECATE
 static char format[] = "%d , %d, %d;\n";
+#endif
+
 static char formatFloat[] = "%s , %s , %s ;\n";
 static char buffer[64];
 
@@ -65,15 +70,24 @@ t_ILSdata* tILS1;
 
 TickType_t h_ms = 1 / portTICK_RATE_MS;
 
+#if PID || PPLACE
 static osThreadId_t signalTaskHandle;
-static osThreadId_t pidTaskHandle;
+static osThreadId_t controlTaskHandle;
+#endif
+
 static osThreadId_t idenTaskHandle;
+
 static SemaphoreHandle_t pidSemaph;
 
+#if PID || PPLACE
 static void task10HzSignal(void *pvParam);
 static void taskPID(void *pvParam);
+#endif
 
+#if DEPRECATE
 static void saveAndPrintData(uint32_t y, uint32_t r, uint32_t e);
+#endif
+
 static void saveAndPrintDataFloat(float y, float r, float e);
 
 static uint32_t getRValue();
@@ -86,7 +100,7 @@ static void setU_fValue(float value);
 
 static void receiveData(float* buffer);
 
-void PID_initTask10Hz() {
+void APP_init() {
 
 	BSP_LED_Init(LED_BLUE);
 	HAL_DAC_SetValue(&hdac, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, 0);
@@ -94,6 +108,7 @@ void PID_initTask10Hz() {
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
 
+#if PID
 //  Punto 5 PID
 //	pidInit(&PsPIDController, 5.0,                   // Kp
 //			1.0,                                      // Ki
@@ -114,7 +129,9 @@ void PID_initTask10Hz() {
 			0.05f,                 // u_min
 			3.3f                   // u_max
 			);
+#endif
 
+#if PPLACE
 //        Punto 7
 //        0.09516
 // y1:  ----------
@@ -124,20 +141,25 @@ void PID_initTask10Hz() {
 	pplace_config.Cd = 1.0;
 
 	pplace_init(&pplace_config, 0.4);
+#endif
 
-//	const osThreadAttr_t signalTaskAttr = { .name = "Task 10Hz", .priority =
-//			(osPriority_t) osPriorityNormal, .stack_size = 128 };
-//	signalTaskHandle = osThreadNew(task10HzSignal, NULL, &signalTaskAttr);
-//
-//	const osThreadAttr_t pidTaskAttr = { .name = "Task PID", .priority =
-//			(osPriority_t) osPriorityNormal, .stack_size = 1024 };
-//	pidTaskHandle = osThreadNew(taskPID, NULL, &pidTaskAttr);
-//
-//	pidSemaph = xSemaphoreCreateBinary();
 
+#if PID || PPLACE
+
+	const osThreadAttr_t signalTaskAttr = { .name = "Task 10Hz", .priority =
+			(osPriority_t) osPriorityNormal, .stack_size = 128 };
+	signalTaskHandle = osThreadNew(task10HzSignal, NULL, &signalTaskAttr);
+
+	const osThreadAttr_t pidTaskAttr = { .name = "Task PID", .priority =
+			(osPriority_t) osPriorityNormal, .stack_size = 1024 };
+	controlTaskHandle = osThreadNew(taskPID, NULL, &pidTaskAttr);
+
+	pidSemaph = xSemaphoreCreateBinary();
+
+#endif
+
+#if IDENTFICATION
 //  Punto 8
-
-
 //    tIRLS1 = (t_IRLSdata*) pvPortMalloc (sizeof(t_IRLSdata));
     tILS1 = (t_ILSdata*) pvPortMalloc (sizeof(t_ILSdata));
 
@@ -147,10 +169,11 @@ void PID_initTask10Hz() {
 	const osThreadAttr_t idenTaskAttr = { .name = "Identification Task", .priority =
 				(osPriority_t) osPriorityNormal, .stack_size = 1024 };
 	idenTaskHandle = osThreadNew(ILS_Task, (void*)tILS1, &idenTaskAttr);
-
+#endif
 
 }
 
+#if PID || PPLACE
 void task10HzSignal(void *pvParam) {
 	xSemaphoreGive(pidSemaph);
 	for (;;) {
@@ -160,7 +183,9 @@ void task10HzSignal(void *pvParam) {
 		HAL_DAC_SetValue(&hdac, DAC1_CHANNEL_1, DAC_ALIGN_12B_R, 0);
 	}
 }
+#endif
 
+#if PID || PPLACE
 void taskPID(void *pvParam) {
 
 	TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -168,6 +193,7 @@ void taskPID(void *pvParam) {
 	xSemaphoreTake(pidSemaph, portMAX_DELAY);
 
 	float array_y[2];
+
 	array_y[0] = 0.0;
 	array_y[1] = 0.0;
 
@@ -180,13 +206,16 @@ void taskPID(void *pvParam) {
 
 		e_fValue = r_fValue - y_fValue;
 
-//		u_fValue = pidCalculateControllerOutput(&PsPIDController, y_fValue,
-//				r_fValue);
-//
+#if PID
+		u_fValue = pidCalculateControllerOutput(&PsPIDController, y_fValue,
+				r_fValue);
+#endif
+
+#if PPLACE
 		array_y[0] = array_y[1];
 		array_y[1] = y_fValue;
-
 		u_fValue = pplace_control(&pplace_config, array_y[0], r_fValue);
+#endif
 
 		setU_fValue(u_fValue);
 
@@ -198,6 +227,7 @@ void taskPID(void *pvParam) {
 	}
 
 }
+#endif
 
 static void saveAndPrintDataFloat(float y, float r, float e) {
 	if (count < DATA_BUFFER_LEN) {
@@ -227,6 +257,7 @@ static void saveAndPrintDataFloat(float y, float r, float e) {
 	}
 }
 
+#if DEPRECATE
 static void saveAndPrintData(uint32_t y, uint32_t r, uint32_t e) {
 	if (count < DATA_BUFFER_LEN) {
 		signalBuffer[count] = r;
@@ -245,6 +276,7 @@ static void saveAndPrintData(uint32_t y, uint32_t r, uint32_t e) {
 		count = 0;
 	}
 }
+#endif
 
 static uint32_t getRValue() {
 	return PIDUTIL_getValue(&hadc2);
@@ -296,6 +328,6 @@ void receiveData(float* buffer) {
 	buffer[1] = Y;
 }
 
-void PID_deInitTask10Hz() {
+void APP_deInit() {
 
 }

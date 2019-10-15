@@ -92,8 +92,8 @@ void IRLS_Task(void* taskParmPtr) {
 void console_print(float* buffer) {
 
 
-	buffer[0] = buffer[0] - 0.03;
-	buffer[2] = buffer[2] + 0.03;
+	buffer[0] = buffer[0] - 0.08;
+	buffer[2] = buffer[2] + 0.08;
 	// Imprimo los parámetros calculados
 	snprintf(printBuff, 64, "%s", "Parametros = [ ");
 	HAL_UART_Transmit(&huart3, (uint8_t*) printBuff, strlen(printBuff), 100);

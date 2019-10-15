@@ -24,7 +24,7 @@
 #define _1V2  				(int)((float)1.2/(float)3.3)*4095))
 
 #define DAC_REFERENCE_VALUE_HIGH   2668  // 4095 = 3.3V, 666 = 2.15V
-#define DAC_REFERENCE_VALUE_LOW    2000  // 4095 = 3.3V,
+#define DAC_REFERENCE_VALUE_LOW    2300  // 4095 = 3.3V,
 
 extern DAC_HandleTypeDef hdac;
 extern ADC_HandleTypeDef hadc1;
@@ -125,7 +125,7 @@ void APP_init() {
 			1.0,                                      // Kd
 			((float) h_ms) / 1000.0f,                 // h en [s]
 			10.0f,                 // N
-			1.0f,                 // b
+			1.06f,                 // b
 			0.05f,                 // u_min
 			3.3f                   // u_max
 			);
